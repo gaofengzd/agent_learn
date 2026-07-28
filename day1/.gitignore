@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+
+# 环境变量文件（核心：禁止提交密钥）
+.env
+.env.local
+.env.*.local
+
+# 虚拟环境文件夹
+.venv/
+venv/
+env/
+
+# IDE 配置文件
+.vscode/
+.idea/
+
+# 日志文件
+*.log
+logs/
