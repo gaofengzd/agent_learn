@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paper-read-agent"
+version = "0.1.0"
+description = "A grounded academic paper reading agent"
+requires-python = ">=3.11"
+dependencies = [
+  "chromadb>=1,<2",
+  "docling>=2.121,<3",
+  "numpy>=1.26,<2",
+  "opencv-python>=4.10,<5",
+  "pymupdf>=1.27,<2",
+  "rapidocr>=3.9,<4",
+  "transformers>=5.8,<6",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4,<9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["src"]

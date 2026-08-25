@@ -1,0 +1,2 @@
+# Keep uv state project-local because the machine-level cache path is invalid.
+cache-dir = "./.uv-cache"
