@@ -43,14 +43,26 @@ class RedactingFilter(logging.Filter):
         return True
 
 
+class RedactingFormatter(logging.Formatter):
+    """Redact exception text as well as ordinary log messages."""
+
+    def __init__(self, *args: object, secrets: Iterable[str] = (), **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self._secrets = tuple(secret for secret in secrets if secret)
+
+    def formatException(self, ei: tuple[type[BaseException], BaseException, object]) -> str:
+        return redact_text(super().formatException(ei), self._secrets)
+
+
 def configure_logging(level: str = "INFO", secrets: Iterable[str] = ()) -> None:
     """Configure the process root logger once with safe, concise output."""
 
     handler = logging.StreamHandler()
     handler.setFormatter(
-        logging.Formatter(
+        RedactingFormatter(
             fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S",
+            secrets=secrets,
         )
     )
     handler.addFilter(RedactingFilter(secrets))

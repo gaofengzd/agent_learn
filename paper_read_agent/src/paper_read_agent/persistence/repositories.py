@@ -91,6 +91,13 @@ class SQLiteDomainRepository:
             ).fetchone()
         return self._paper(row) if row else None
 
+    def list_papers(self) -> tuple[Paper, ...]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM papers ORDER BY created_at DESC, paper_id"
+            ).fetchall()
+        return tuple(self._paper(row) for row in rows)
+
     def delete_paper_record(self, paper_id: str) -> None:
         """Rollback helper for a paper whose initial file persistence failed."""
         with self.database.transaction() as connection:
@@ -363,6 +370,22 @@ class SQLiteDomainRepository:
                 )
         return value
 
+    def list_conversations(self) -> tuple[Conversation, ...]:
+        with self.database.connect() as connection:
+            ids = [row[0] for row in connection.execute("SELECT conversation_id FROM conversations ORDER BY updated_at DESC")]
+        return tuple(item for item in (self.get_conversation(cid) for cid in ids) if item is not None)
+
+    def delete_conversation(self, conversation_id: str) -> None:
+        with self.database.transaction() as connection:
+            cursor = connection.execute("DELETE FROM conversations WHERE conversation_id=?", (conversation_id,))
+            self._require_updated(cursor, conversation_id)
+
+    def list_messages(self, conversation_id: str) -> tuple[Message, ...]:
+        with self.database.connect() as connection:
+            rows = connection.execute("SELECT * FROM messages WHERE conversation_id=? ORDER BY created_at,message_id",
+                                      (conversation_id,)).fetchall()
+        return tuple(self._message(row) for row in rows)
+
     def create_message(self, message: Message) -> Message:
         now = utc_now()
         value = replace(message, created_at=message.created_at or now, updated_at=message.updated_at or now)
@@ -377,6 +400,19 @@ class SQLiteDomainRepository:
                 ),
             )
         return value
+
+    def create_message_pair(self, user: Message, assistant: Message) -> tuple[Message, Message]:
+        now = utc_now()
+        values = tuple(replace(item, created_at=item.created_at or now,
+                               updated_at=item.updated_at or now) for item in (user, assistant))
+        with self.database.transaction() as connection:
+            for value in values:
+                connection.execute("INSERT INTO messages VALUES (?,?,?,?,?,?,?,?,?,?)", (
+                    value.message_id, value.conversation_id, value.role.value, value.content,
+                    _json(value.structured_payload), _json(value.retrieval_scope),
+                    _json(value.evidence_ids), value.answer_status.value if value.answer_status else None,
+                    value.created_at, value.updated_at))
+        return values  # type: ignore[return-value]
 
     def get_message(self, message_id: str) -> Message | None:
         with self.database.connect() as connection:

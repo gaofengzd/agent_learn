@@ -10,15 +10,20 @@ requires-python = ">=3.11"
 dependencies = [
   "chromadb>=1,<2",
   "docling>=2.121,<3",
+  "fastapi>=0.116,<1",
+  "jinja2>=3.1,<4",
   "numpy>=1.26,<2",
   "opencv-python>=4.10,<5",
   "pymupdf>=1.27,<2",
   "rapidocr>=3.9,<4",
+  "python-multipart>=0.0.20,<1",
   "transformers>=5.8,<6",
+  "uvicorn>=0.35,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "httpx>=0.28,<1",
   "pytest>=7.4,<9",
 ]
 
@@ -26,6 +31,10 @@ dev = [
 where = ["src"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q --tb=short"
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "real_glm: opt-in network test against the configured GLM service",
+  "performance: local performance smoke baseline",
+]

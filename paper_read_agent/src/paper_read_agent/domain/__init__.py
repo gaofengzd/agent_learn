@@ -1,5 +1,6 @@
 """Framework-independent domain models."""
 
+from paper_read_agent.domain.evidence import Citation, Evidence, EvidenceRegistry
 from paper_read_agent.domain.models import (
     AnswerStatus,
     Chunk,
@@ -16,6 +17,7 @@ from paper_read_agent.domain.models import (
 )
 
 __all__ = [
+    "Citation", "Evidence", "EvidenceRegistry",
     "AnswerStatus",
     "Chunk",
     "ContentBlock",

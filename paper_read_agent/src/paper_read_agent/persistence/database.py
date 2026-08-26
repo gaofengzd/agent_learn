@@ -169,6 +169,16 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         WHERE status IN ('queued','running');
         """,
     ),
+    (3, """
+        CREATE TABLE conversation_scope_events (
+            event_id TEXT PRIMARY KEY,
+            conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+            scope_mode TEXT NOT NULL CHECK (scope_mode IN ('selected','library')),
+            paper_ids_json TEXT NOT NULL DEFAULT '[]',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX idx_scope_events_conversation ON conversation_scope_events(conversation_id,created_at);
+    """),
 )
 
 

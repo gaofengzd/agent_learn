@@ -1,0 +1,22 @@
+[
+  {"id":"A01","fixture":"native_zh","question":"论文解决什么问题？","scope":["native_zh"],"evidence":["p1-intro"],"layer":"generation"},
+  {"id":"A02","fixture":"native_en","question":"What is the method?","scope":["native_en"],"evidence":["p2-method"],"layer":"generation"},
+  {"id":"A03","fixture":"scanned_zh","question":"扫描论文结论是什么？","scope":["scanned_zh"],"evidence":["p3-conclusion"],"layer":"parsing"},
+  {"id":"A04","fixture":"mixed_pdf","question":"混合页的方法是什么？","scope":["mixed_pdf"],"evidence":["p4-method"],"layer":"parsing"},
+  {"id":"A05","fixture":"two_column","question":"双栏结果如何？","scope":["two_column"],"evidence":["p5-results"],"layer":"parsing"},
+  {"id":"A06","fixture":"table_formula","question":"表中最高值是多少？","scope":["table_formula"],"evidence":["p6-table"],"layer":"parsing"},
+  {"id":"A07","fixture":"table_formula","question":"公式定义了什么？","scope":["table_formula"],"evidence":["p6-formula"],"layer":"parsing"},
+  {"id":"A08","fixture":"multi_paper","question":"两篇论文方法有何共同点？","scope":["native_zh","native_en"],"evidence":["p1-method","p2-method"],"layer":"retrieval"},
+  {"id":"A09","fixture":"conflict","question":"两篇论文的结论是否一致？","scope":["conflict_a","conflict_b"],"evidence":["p9-a","p9-b"],"layer":"generation"},
+  {"id":"A10","fixture":"versions","question":"新版修改了什么？","scope":["version_v1","version_v2"],"evidence":["p10-v1","p10-v2"],"layer":"retrieval"},
+  {"id":"A11","fixture":"native_zh","question":"作者未报告的数据集大小？","scope":["native_zh"],"evidence":[],"layer":"generation"},
+  {"id":"A12","fixture":"native_en","question":"限定单篇论文回答","scope":["native_en"],"evidence":["p2-intro"],"layer":"retrieval"},
+  {"id":"A13","fixture":"multi_paper","question":"全库中哪些论文使用注意力？","scope":["*"],"evidence":["p1-method","p2-method"],"layer":"retrieval"},
+  {"id":"A14","fixture":"native_zh","question":"生成简要总结","scope":["native_zh"],"evidence":["p1-intro","p1-conclusion"],"layer":"generation"},
+  {"id":"A15","fixture":"multi_paper","question":"生成跨论文详细总结","scope":["native_zh","native_en"],"evidence":["p1-conclusion","p2-conclusion"],"layer":"generation"},
+  {"id":"A16","fixture":"native_zh","question":"提取核心方法与辅助方法","scope":["native_zh"],"evidence":["p1-method"],"layer":"generation"},
+  {"id":"A17","fixture":"native_en","question":"列出作者明示贡献","scope":["native_en"],"evidence":["p2-contribution"],"layer":"generation"},
+  {"id":"A18","fixture":"native_zh","question":"推断潜在创新并标注推断","scope":["native_zh"],"evidence":["p1-method"],"layer":"generation"},
+  {"id":"A19","fixture":"low_quality_scan","question":"低质量页能否回答？","scope":["low_quality_scan"],"evidence":[],"layer":"parsing"},
+  {"id":"A20","fixture":"native_zh","question":"每个结论引用页码是否有效？","scope":["native_zh"],"evidence":["p1-conclusion"],"layer":"citation"}
+]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
 from typing import BinaryIO
@@ -29,9 +29,11 @@ class UploadResult:
 
 
 class PaperService:
-    def __init__(self, repository: SQLiteDomainRepository, pdf_dir: Path) -> None:
+    def __init__(self, repository: SQLiteDomainRepository, pdf_dir: Path,
+                 *, max_file_bytes: int | None = None) -> None:
         self.repository = repository
         self.pdf_dir = pdf_dir.resolve()
+        self.max_file_bytes = max_file_bytes
 
     def upload_pdf(
         self,
@@ -41,7 +43,9 @@ class PaperService:
         stream: BinaryIO,
     ) -> UploadResult:
         self._validate_metadata(original_filename, content_type)
-        payload = stream.read()
+        payload = stream.read(self.max_file_bytes + 1 if self.max_file_bytes is not None else -1)
+        if self.max_file_bytes is not None and len(payload) > self.max_file_bytes:
+            raise UploadValidationError("Uploaded PDF exceeds configured file-size limit")
         if not payload:
             raise UploadValidationError("Uploaded PDF is empty")
         if not payload.startswith(PDF_SIGNATURE):
@@ -79,6 +83,9 @@ class PaperService:
             stored_paper = self.repository.create_paper(paper)
             created_paper = True
             stored_version = self.repository.create_version(version)
+            stored_paper = self.repository.update_paper(
+                replace(stored_paper, active_version_id=stored_version.version_id)
+            )
             temp_path.replace(destination)
         except Exception:
             temp_path.unlink(missing_ok=True)

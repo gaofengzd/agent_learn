@@ -1,0 +1,8 @@
+<form action="/sessions" method="post"><label>新会话标题 <input name="title" required></label><button>创建会话</button></form>
+{% if qa.conversation_id %}<section><h3>{{ qa.title }}</h3><form action="/sessions/{{ qa.conversation_id }}/scope" method="post"><label>范围 <select name="scope_mode"><option value="selected">指定论文</option><option value="library">全库</option></select></label>
+{% for paper in qa.available_papers %}<label><input type="checkbox" name="paper_ids" value="{{ paper.paper_id }}" {% if paper.paper_id in qa.paper_ids %}checked{% endif %}>{{ paper.title }}</label>{% endfor %}<button>切换范围</button></form>
+<p><b>当前实际范围：</b>{{ qa.scope_label }}</p><div class="messages">{% for message in qa.messages %}<article><h4>{{ message.role_label }}</h4><p>{{ message.content }}</p>
+{% if message.answer_status %}<p><b>证据状态：</b>{{ message.answer_status }}</p>{% endif %}{% if message.unanswered_items %}<p class="warning"><b>△ 未回答：</b>{{ message.unanswered_items|join('；') }}</p>{% endif %}
+{% for evidence_id in message.evidence_ids %}<a href="#{{ evidence_id }}">[{{ evidence_id }}]</a>{% endfor %}</article>{% endfor %}</div>
+<form action="/sessions/{{ qa.conversation_id }}/ask" method="post"><label for="question">基于原文提问</label><textarea id="question" name="question" required></textarea><button>发送</button></form>
+<form action="/sessions/{{ qa.conversation_id }}/delete" method="post"><button>删除会话</button></form></section>{% else %}<p>创建或选择一个会话开始提问。</p>{% endif %}

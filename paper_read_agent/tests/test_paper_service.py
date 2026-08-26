@@ -31,6 +31,7 @@ def test_upload_stores_pdf_and_initial_records(service: PaperService) -> None:
     assert result.duplicate is False
     assert result.version is not None
     assert result.paper.title == "paper"
+    assert result.paper.active_version_id == result.version.version_id
     stored_path = Path(result.paper.file_path)
     assert stored_path.parent == service.pdf_dir
     assert stored_path.name == f"{result.paper.paper_id}.pdf"

@@ -1,0 +1,10 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>论文精读 Agent</title><link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}"></head>
+<body><a class="skip" href="#content">跳到主要内容</a><header><h1>论文精读 Agent</h1><div class="health" aria-label="系统健康状态">
+{% for item in health %}<span class="status status-{{ item.status }}"><b aria-hidden="true">{% if item.status == 'available' %}✓{% elif item.status == 'warning' %}△{% else %}!{% endif %}</b> {{ item.name }}：{{ item.message }}</span>{% endfor %}</div></header>
+{% if state %}<div role="alert" class="notice {{ state.level }}"><b>{{ state.icon }} {{ state.label }}</b>：{{ state.message }}</div>{% endif %}
+<div class="layout"><aside aria-label="论文与会话导航"><nav><a href="/?section=library">论文库</a><a href="/?section=read">问答</a><a href="/?section=analysis">阅读分析</a></nav>
+<h2>论文</h2><ul>{% for p in navigation.papers %}<li>{{ p.title }}</li>{% else %}<li>暂无论文</li>{% endfor %}</ul>
+<h2>会话</h2><ul>{% for c in navigation.conversations %}<li>{{ c.title }}</li>{% else %}<li>暂无会话</li>{% endfor %}</ul></aside>
+<main id="content" tabindex="-1"><h2>{% if section=='library' %}论文库{% elif section=='analysis' %}总结、方法与创新{% else %}基于原文问答{% endif %}</h2><div id="workspace">{% if section=='library' %}{% include 'library.html' %}{% elif section=='read' %}{% include 'qa.html' %}{% elif section=='analysis' %}{% include 'analysis.html' %}{% endif %}</div></main>
+{% set citations = qa.citations if qa and qa.citations else (analysis.citations if analysis and analysis.citations else []) %}<aside class="citation-panel" aria-label="引用详情"><h2>引用详情</h2>{% if citations %}{% for cite in citations %}<details id="{{ cite.evidence_id }}"><summary>{{ cite.label }}</summary><p>{{ cite.excerpt }}</p><p>来源：{{ cite.source_type }}</p></details>{% endfor %}{% else %}<p>点击结果中的引用后在这里查看论文、页码、章节与原文片段。</p>{% endif %}</aside></div></body></html>
