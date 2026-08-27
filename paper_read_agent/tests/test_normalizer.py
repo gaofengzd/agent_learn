@@ -63,6 +63,18 @@ def test_ids_and_relations_are_stable(tmp_path: Path) -> None:
     assert {block.block_type for block in first.blocks} >= {"table", "formula", "picture", "caption"}
 
 
+def test_repeated_provenance_blocks_have_stable_unique_ids(tmp_path: Path) -> None:
+    document, preflight, ocr = inputs(tmp_path)
+    document["texts"].append({"label":"text","text":"Repeated",
+        "prov":[{"page_no":1,"bbox":[1,1,2,2]},{"page_no":1,"bbox":[3,3,4,4]}]})
+    normalizer=DocumentNormalizer()
+    first=normalizer.normalize(version_id="v1",docling_document=document,preflight=preflight,ocr=ocr)
+    second=normalizer.normalize(version_id="v1",docling_document=document,preflight=preflight,ocr=ocr)
+    repeated=[block.block_id for block in first.blocks if block.text=="Repeated"]
+    assert len(repeated)==2 and len(set(repeated))==2
+    assert repeated==[block.block_id for block in second.blocks if block.text=="Repeated"]
+
+
 def test_deduplicates_ocr_text_already_present_on_same_page(tmp_path: Path) -> None:
     document, preflight, ocr = inputs(tmp_path)
     line = OCRLine("Native method", 0.9, ((1, 1), (2, 1), (2, 2), (1, 2)))

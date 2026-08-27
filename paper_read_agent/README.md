@@ -30,7 +30,7 @@ FastAPI + Jinja UI
 
 模块边界位于 `src/paper_read_agent/`：`document_pipeline` 负责文件内容，`retrieval` 负责召回与上下文，`llm` 是模型边界，`application` 编排用例，`persistence` 管理 SQLite/Chroma 一致性，`ui` 只负责本地页面和 façade 接口。
 
-页面通过 `UIFacade` 与业务服务解耦。默认 ASGI 入口从项目 `.env` 读取配置并创建 `LocalUIFacade`，初始化本地目录、SQLite、上传服务和后台处理队列；新 PDF 会依次进入 Docling、按页 RapidOCR、质量评估、父子 chunk、FTS5 与 Chroma。问答和阅读分析页面的完整运行时服务仍需继续接入该 façade。
+页面通过 `UIFacade` 与业务服务解耦。默认 ASGI 入口从项目 `.env` 读取配置并创建 `LocalUIFacade`，初始化本地目录、SQLite、上传服务和后台处理队列；新 PDF 会依次进入 Docling、按页 RapidOCR、质量评估、父子 chunk、FTS5 与 Chroma。问答、总结、方法提取和创新分析共用该 façade 中按需加载的本地检索、证据注册与 GLM 服务图。
 
 ## 数据流
 
@@ -103,7 +103,7 @@ $env:PAPER_AGENT_DATA_DIR = "D:\paper-agent-data"
 uv run uvicorn paper_read_agent.ui.app:app --host 127.0.0.1 --port 8000
 ```
 
-打开 `http://127.0.0.1:8000/`。三个页面名称为“论文库”“问答”“阅读分析”。默认入口可以真实上传论文并在后台解析、OCR 和建立索引；首次加载 Docling、OCR 和本地 embedding 模型可能较慢。问答与阅读分析的默认 façade 接线尚未完成，页面不能据此宣称已生成真实结果。
+打开 `http://127.0.0.1:8000/`。三个页面名称为“论文库”“问答”“阅读分析”。默认入口可以真实上传论文并在后台解析、OCR 和建立索引；问答与阅读分析会调用真实检索和 GLM 服务。首次加载 Docling、OCR、embedding 或 reranker 模型可能较慢。
 
 运行稳定测试集：
 
@@ -136,7 +136,6 @@ PDF、解析文本、向量、会话和日志默认留在本地数据目录；em
 
 ## 后续改进方向
 
-- 将 QA、总结、方法和创新服务接入默认 `LocalUIFacade`，完成读取功能的运行时组装。
 - 增加真实、可再分发的复杂论文小样本和人工标注的检索/引用指标。
 - 改善中文关键词切词、跨页表格重建、公式表示与版面阅读顺序。
 - 提供后台任务进度推送、取消任务和更细粒度资源监控。

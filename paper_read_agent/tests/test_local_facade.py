@@ -40,3 +40,16 @@ def test_duplicate_upload_does_not_enqueue_second_task(tmp_path):
     with facade.database.connect() as connection:
         assert connection.execute("SELECT count(*) FROM processing_tasks").fetchone()[0]==1
     facade.runner.shutdown()
+
+def test_failed_status_is_consistent_and_default_facade_can_delete(tmp_path):
+    def fail(_):raise RuntimeError("parse failed")
+    facade=LocalUIFacade(settings(tmp_path),processor=fail)
+    result=facade.upload_papers([("paper.pdf","application/pdf",pdf_bytes())])[0]
+    deadline=time.time()+3
+    while time.time()<deadline and not facade.list_papers()[0]["can_retry"]:time.sleep(.01)
+    listed=facade.list_papers()[0]
+    assert listed["status_label"]=="处理失败" and listed["quality"]=="failed"
+    assert listed["unreadable_label"]=="处理失败，暂不可阅读" and not listed["progress"]
+    facade.delete_paper(result["paper_id"])
+    assert facade.list_papers()==[]
+    facade.runner.shutdown()

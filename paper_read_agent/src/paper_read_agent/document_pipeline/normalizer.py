@@ -69,7 +69,7 @@ class DocumentNormalizer:
                 in_references = title.casefold() in self._REFERENCE_TITLES
             block_type = "reference" if in_references and normalized_label != "heading" else normalized_label
             block_id = self._id(
-                "block", version_id, str(page_number), str(order), block_type,
+                "block", version_id, str(page_number), str(order), str(position), block_type,
                 re.sub(r"\s+", " ", text).strip(), source,
             )
             blocks.append(

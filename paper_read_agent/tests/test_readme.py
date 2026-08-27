@@ -15,7 +15,7 @@ def test_documented_asgi_entrypoint_starts_and_names_all_pages():
     assert response.status_code==200
     for page in ["论文库","问答","阅读分析"]:assert page in response.text
 
-def test_readme_describes_default_upload_wiring_without_overclaiming_qa():
+def test_readme_describes_default_upload_and_reading_wiring():
     text=README.read_text(encoding="utf-8")
     assert "创建 `LocalUIFacade`" in text and "真实上传论文" in text
-    assert "问答与阅读分析的默认 façade 接线尚未完成" in text
+    assert "问答与阅读分析会调用真实检索和 GLM 服务" in text

@@ -29,12 +29,15 @@ class Embedder(Protocol):
 
 
 class LocalBGEEmbedder:
-    def __init__(self, model_path: str | Path, *, batch_size: int = 16) -> None:
+    def __init__(self, model_path: str | Path, *, batch_size: int = 16,
+                 max_length: int = 512) -> None:
         path = Path(model_path)
         if not path.is_dir():
             raise FileNotFoundError(f"Local embedding model directory does not exist: {path}")
         self.path = path.resolve()
         self.batch_size = batch_size
+        if max_length <= 0:raise ValueError("Embedding max length must be positive")
+        self.max_length = max_length
         self.tokenizer = AutoTokenizer.from_pretrained(self.path, local_files_only=True)
         self.model = AutoModel.from_pretrained(self.path, local_files_only=True)
         self.model.eval()
@@ -52,7 +55,8 @@ class LocalBGEEmbedder:
         vectors: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
             batch = list(texts[start:start + self.batch_size])
-            encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
+            encoded = self.tokenizer(batch, padding=True, truncation=True,
+                                     max_length=self.max_length, return_tensors="pt")
             with torch.inference_mode():
                 output = self.model(**encoded)
                 embeddings = functional.normalize(output.last_hidden_state[:, 0], p=2, dim=1)

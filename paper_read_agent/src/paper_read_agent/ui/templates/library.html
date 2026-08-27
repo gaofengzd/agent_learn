@@ -2,6 +2,6 @@
 <div class="cards">{% for paper in papers %}<article><h3>{{ paper.title }}</h3><p><b>状态：</b>{{ paper.status_label }}</p><p><b>版本：</b>{{ paper.version }}</p>
 {% if paper.progress %}<p><b>进度：</b>{{ paper.progress }}</p>{% endif %}{% if paper.quality %}<p><b>质量：</b>{{ paper.quality }}</p>{% endif %}
 {% if paper.missing_pages %}<p class="warning"><b>△ 缺失页：</b>{{ paper.missing_pages|join(', ') }}</p>{% endif %}{% if paper.error %}<p role="alert"><b>! 错误：</b>{{ paper.error }}</p>{% endif %}
-<div class="actions">{% if paper.readable %}<a href="/?section=read&paper_id={{ paper.paper_id }}">开始阅读</a>{% else %}<span aria-disabled="true">处理中，暂不可阅读</span>{% endif %}
+<div class="actions">{% if paper.readable %}<a href="/?section=read&paper_id={{ paper.paper_id }}">开始阅读</a>{% else %}<span aria-disabled="true">{{ paper.unreadable_label or '处理中，暂不可阅读' }}</span>{% endif %}
 {% if paper.can_retry %}<form action="/library/{{ paper.paper_id }}/retry" method="post"><button>重试</button></form>{% endif %}<form action="/library/{{ paper.paper_id }}/reprocess" method="post"><button>重新处理</button></form>
 <form action="/library/{{ paper.paper_id }}/delete" method="post"><label><input type="checkbox" name="confirm" value="yes" required>确认删除</label><button>删除</button></form></div></article>{% else %}<p>论文库为空，请上传 PDF。</p>{% endfor %}</div>
