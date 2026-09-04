@@ -350,3 +350,171 @@ KG2RAG 详细总结此前连续三次得到空响应。取消客户端超时只�
 
 - `src/paper_read_agent/application/local_reading.py`
 - `tests/test_local_reading.py`
+
+## 14. QA 默认 60 秒客户端超时会中断复杂问答
+
+### 问题概述
+
+分析类任务已经允许无限等待，但问答使用的 `GLMClient` 仍曾默认设置
+60 秒超时。复杂问题需要较长的本地 CPU 重排和远程生成时间，因此可能在
+模型能够完成前被客户端中止。
+
+### 解决方法
+
+- `GLMClient` 的默认超时改为 `None`。
+- 增加 `PAPER_AGENT_QA_TIMEOUT` 独立配置；未配置以及配置为
+  `none`、`null` 或 `off` 时均表示不设置客户端超时。
+- 如部署环境需要限制等待时间，可配置正数秒数；零和负数会在启动配置
+  校验时被拒绝。
+- 默认本地服务将该配置明确传入 QA 客户端，且测试确认 transport 收到
+  的 timeout 为 `None`。
+
+### 修改的代码位置
+
+- `src/paper_read_agent/config.py`
+- `src/paper_read_agent/llm/glm_client.py`
+- `src/paper_read_agent/application/local_reading.py`
+- `tests/test_config.py`
+- `tests/test_glm_client.py`
+- `README.md`
+
+## 15. 长分析占用同步 HTTP 请求导致页面假死
+
+### 问题概述
+
+总结、方法提取和创新分析原先直接在页面 POST 请求中执行。本地 reranker
+和远程生成可能运行数分钟，浏览器或自动化控制层会在服务器完成之前回收
+连接，用户也无法区分任务仍在运行、已经失败或页面失去响应。
+
+### 解决方法
+
+- 增加进程内单工作线程分析队列，POST 只负责校验范围和提交任务，随后
+  立即返回分析页面。
+- 任务记录 `queued`、`running`、`succeeded`、`failed` 状态，
+  并展示排队中、运行中、已完成或具体失败信息。
+- 有活动任务时页面每三秒自动刷新；完成后停止自动刷新并展示原有分析
+  结果和证据。
+- 对任务状态、分析结果和引用分别增加线程同步保护，避免后台写入与页面
+  刷新同时发生时读取到不一致状态。
+- 当前队列只使用一个 worker，避免多个分析同时争用本地 CPU reranker。
+
+### 当前边界
+
+任务和结果的服务重启恢复已在后续的 SQLite 持久化修复中完成，任务取消
+和相同请求去重见第 17 节。
+
+### 修改的代码位置
+
+- `src/paper_read_agent/ui/local_facade.py`
+- `src/paper_read_agent/ui/web.py`
+- `src/paper_read_agent/ui/templates/base.html`
+- `src/paper_read_agent/ui/templates/analysis.html`
+- `tests/test_analysis_tasks.py`
+- `tests/test_analysis_ui.py`
+
+## 18. 已运行 migration 4 的数据库缺少取消字段
+
+### 问题概述
+
+任务取消功能初版直接修改了 migration 4 的建表语句。全新数据库可以正常
+工作，但已经执行过 migration 4 的本地数据库不会重新运行同一版本；代码
+读取 `cancel_requested` 时会报字段不存在，且旧表状态约束不允许写入
+`cancelled`。
+
+### 解决方法
+
+- 保持 migration 4 为最初发布的后台任务表结构，避免改变已发布迁移含义。
+- 新增 migration 5，在事务中重建分析任务表，加入取消标记和
+  `cancelled` 状态约束。
+- 将旧任务及其结果 JSON、时间和状态完整复制到新表，旧记录的取消标记
+  初始化为 0，然后重建索引。
+
+### 测试覆盖
+
+回归测试先构造一个已执行 migration 1–4 且包含成功分析结果的数据库，再
+运行正常初始化；验证 schema 升级到 v5，任务状态和结果未丢失，并获得
+`cancel_requested=0`。
+
+### 修改的代码位置
+
+- `src/paper_read_agent/persistence/database.py`
+- `tests/test_persistence.py`
+
+## 16. 服务重启后分析任务、结果和引用丢失
+
+### 问题概述
+
+后台化初版将任务状态、总结、方法、创新结果及引用保存在
+`LocalUIFacade` 内存中。刷新页面可以恢复显示，但服务重启后所有分析
+状态和结果都会消失；重启前处于运行中的任务还可能被用户误认为仍会继续。
+
+### 解决方法
+
+- 增加 SQLite migration 4 和 `analysis_tasks` 表，保存任务类型、论文
+  ID、活动版本 ID、总结层级、状态、消息、结果 JSON 和生命周期时间。
+- 后台任务提交、开始、成功和失败状态均写入 SQLite；成功时将分析结果及
+  引用作为一个结果快照保存。
+- 服务启动时按时间恢复成功结果，并合并总结、方法、作者贡献和 Agent
+  推断结果。
+- 恢复前校验论文仍存在且活动版本与任务记录完全一致；论文重新处理后不
+  展示旧版本分析。
+- 上次服务遗留的 `queued` 或 `running` 任务统一标记为失败，并显示
+  “服务重启，未完成任务已中断”，不伪装为仍在执行。
+
+### 测试覆盖
+
+- 队列对象销毁并重新创建后仍可读取成功结果。
+- 重启恢复时能够识别并结束遗留运行任务。
+- 完整重建 `LocalUIFacade` 后，同一论文版本的总结和 evidence 引用仍
+  能恢复。
+- 数据库迁移可重复执行，最新 schema 版本自动更新。
+
+### 修改的代码位置
+
+- `src/paper_read_agent/persistence/database.py`
+- `src/paper_read_agent/ui/local_facade.py`
+- `tests/test_analysis_tasks.py`
+- `tests/test_local_facade.py`
+- `README.md`
+
+## 17. 重复分析挤占 CPU，页面离开后无法取消
+
+### 问题概述
+
+用户重复点击同一种分析会创建多个内容、论文版本和总结层级完全相同的
+任务，依次占用本地 CPU reranker。页面请求虽然已经后台化，但用户无法
+取消误提交或不再需要的任务，运行中的任务仍会继续后续检索和生成步骤。
+
+### 解决方法
+
+- 提交前按分析类型、论文 ID、活动版本 ID 和总结层级查找排队中或运行中
+  的相同任务；命中时复用原任务，并在页面明确提示无需重复提交。
+- `analysis_tasks` 增加持久化取消标记和 `cancelled` 状态，页面为活动任务
+  提供“取消任务”操作。
+- 尚未开始的任务直接从执行器队列撤销；已经开始的任务在检索、每个分析
+  分段以及模型调用前后检查取消标记，停止剩余工作。
+- 取消状态写入 SQLite，刷新页面或服务重启后仍可正确显示。
+
+### 当前边界
+
+取消采用协作式检查。它不能安全地强制终止正在执行的单个 PyTorch
+reranker 批次，也不能中断已经发出且未设置客户端超时的 GLM HTTP 调用；
+当前步骤返回后会立即停止，不再开始后续步骤。若需要即时中断，后续应将
+模型推理隔离到可终止的工作进程，并为传输层增加独立取消能力。
+
+### 测试覆盖
+
+- 相同活动请求只创建一个任务并返回原任务 ID。
+- 排队任务可在执行前取消，不会调用分析服务。
+- 运行任务在收到取消信号后以 `cancelled` 结束，不保存成功结果。
+- 页面显示取消按钮、重复任务提示，并将任务 ID 传给取消接口。
+
+### 修改的代码位置
+
+- `src/paper_read_agent/application/local_reading.py`
+- `src/paper_read_agent/persistence/database.py`
+- `src/paper_read_agent/ui/local_facade.py`
+- `src/paper_read_agent/ui/web.py`
+- `src/paper_read_agent/ui/templates/analysis.html`
+- `tests/test_analysis_tasks.py`
+- `tests/test_analysis_ui.py`

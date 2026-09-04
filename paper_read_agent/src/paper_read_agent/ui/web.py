@@ -104,11 +104,26 @@ def create_app(facade:UIFacade|None=None)->FastAPI:
     @app.post("/analysis/{operation}",response_class=HTMLResponse)
     def run_analysis(request:Request,operation:str,paper_ids:list[str]=Form([]),level:str=Form("standard")):
         try:
-            if operation=="summary":facade.summarize(paper_ids,level)
-            elif operation=="methods":facade.extract_methods(paper_ids)
-            elif operation=="innovations":facade.analyze_innovations(paper_ids)
-            else:raise ValueError("未知分析类型")
-            state=UIState("success","✓","完成","阅读分析已生成")
+            if hasattr(facade,"submit_analysis"):
+                task=facade.submit_analysis(operation,paper_ids,level)
+                if task.get("duplicate"):
+                    state=UIState("warning","△","任务已存在","相同的阅读分析正在执行，无需重复提交")
+                else:
+                    state=UIState("success","✓","已提交","阅读分析正在后台执行")
+            else:
+                if operation=="summary":facade.summarize(paper_ids,level)
+                elif operation=="methods":facade.extract_methods(paper_ids)
+                elif operation=="innovations":facade.analyze_innovations(paper_ids)
+                else:raise ValueError("未知分析类型")
+                state=UIState("success","✓","完成","阅读分析已生成")
         except Exception as exc:state=UIState("error","!","错误",f"分析失败：{type(exc).__name__}: {exc}")
+        return analysis_response(request,state)
+    @app.post("/analysis/tasks/{task_id}/cancel",response_class=HTMLResponse)
+    def cancel_analysis(request:Request,task_id:str):
+        try:
+            facade.cancel_analysis(task_id)
+            state=UIState("warning","△","取消中","任务将在当前计算步骤结束后停止")
+        except Exception as exc:
+            state=UIState("error","!","错误",f"取消失败：{type(exc).__name__}: {exc}")
         return analysis_response(request,state)
     return app

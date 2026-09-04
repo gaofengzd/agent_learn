@@ -85,6 +85,7 @@ class _JSONGenerator:
         self.transport, self.model, self.task = transport, model, task
         self.max_retries = max_retries
         self.timeout = timeout
+        self.cancellation_check = lambda: False
 
     def _call(self, instruction: str, registries: Mapping[str, EvidenceRegistry]) -> dict[str, Any]:
         evidence = [asdict(item) for registry in registries.values() for item in registry.evidence]
@@ -96,8 +97,12 @@ class _JSONGenerator:
                    "max_tokens": 4096}
         last: Exception | None = None
         for attempt in range(self.max_retries + 1):
+            if self.cancellation_check():
+                raise RuntimeError("Analysis cancelled")
             try:
                 response = self.transport.post(payload, timeout=self.timeout)
+                if self.cancellation_check():
+                    raise RuntimeError("Analysis cancelled")
                 content = response["choices"][0]["message"]["content"]
                 if not content:
                     choice = response.get("choices", [{}])[0]
@@ -212,13 +217,20 @@ class LocalReadingServices:
         judge = _EvidenceJudge()
         preparer = _EvidencePreparer(repository, SufficiencyChecker(judge), scorer.tokenizer,
                                      settings.retrieval.evidence_context_ratio)
-        glm = GLMClient(transport, model=settings.models.glm_model)
+        glm = GLMClient(transport, model=settings.models.glm_model,
+                        timeout=settings.models.qa_timeout)
         self.qa = QuestionAnsweringService(repository, QueryPlanner(), retriever, reranker,
                                            preparer, glm, PostGenerationVerifier(judge))
         self.summary = SummarizationService(_SummaryGenerator(transport, settings.models.glm_model, "Summarize papers"))
         self.methods = MethodExtractionService(_MethodGenerator(transport, settings.models.glm_model, "Extract methods"))
         self.innovations = InnovationService(_InnovationGenerator(transport, settings.models.glm_model, "Analyze innovations"))
         self.preparer, self.retriever, self.reranker = preparer, retriever, reranker
+        self._analysis_generators=(self.summary.generator,self.methods.generator,
+                                  self.innovations.generator)
+
+    def set_analysis_cancellation_check(self,check):
+        for generator in self._analysis_generators:
+            generator.cancellation_check=check
 
     def registries(self, paper_ids: Sequence[str], intent: QueryIntent) -> dict[str, EvidenceRegistry]:
         values = {}
@@ -231,6 +243,8 @@ class LocalReadingServices:
                                    "result_limit", 12)
             delegate = getattr(self.reranker, "delegate", self.reranker)
             for query in queries:
+                if self.summary.generator.cancellation_check():
+                    raise RuntimeError("Analysis cancelled")
                 plan = QueryPlanner().plan(query, scope_mode="selected",
                                            selected_paper_ids=[paper_id])
                 recall = self.retriever.retrieve(plan)

@@ -89,7 +89,7 @@ class GLMHTTPTransport:
 
 
 class GLMClient:
-    def __init__(self, transport: Transport, *, model: str = "glm-4.7", timeout: float = 60,
+    def __init__(self, transport: Transport, *, model: str = "glm-4.7", timeout: float | None = None,
                  max_retries: int = 2, max_output_tokens: int = 8192) -> None:
         self.transport, self.model, self.timeout, self.max_retries = transport, model, timeout, max_retries
         self.max_output_tokens = max_output_tokens

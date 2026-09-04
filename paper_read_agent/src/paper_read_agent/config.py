@@ -43,6 +43,20 @@ def _read_float(values: Mapping[str, str], name: str, default: float) -> float:
         raise ConfigurationError(f"{name} must be a number") from exc
 
 
+def _read_optional_float(
+    values: Mapping[str, str], name: str, default: float | None
+) -> float | None:
+    raw = values.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    if raw.strip().casefold() in {"none", "null", "off"}:
+        return None
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ConfigurationError(f"{name} must be a number or none") from exc
+
+
 def _read_path(values: Mapping[str, str], name: str, default: Path) -> Path:
     raw = values.get(name)
     return Path(raw).expanduser() if raw else default
@@ -62,6 +76,7 @@ class StorageSettings:
 class ModelSettings:
     glm_api_key: str
     glm_model: str
+    qa_timeout: float | None
     embedding_model_path: Path
     reranker_model_path: Path
 
@@ -126,6 +141,9 @@ class AppSettings:
             models=ModelSettings(
                 glm_api_key=glm_api_key,
                 glm_model=values.get(f"{ENV_PREFIX}GLM_MODEL", "glm-4.7").strip(),
+                qa_timeout=_read_optional_float(
+                    values, f"{ENV_PREFIX}QA_TIMEOUT", None
+                ),
                 embedding_model_path=_read_path(
                     values,
                     f"{ENV_PREFIX}EMBEDDING_MODEL_PATH",
@@ -189,6 +207,8 @@ class AppSettings:
             errors.append(f"{ENV_PREFIX}GLM_API_KEY is required")
         if not self.models.glm_model:
             errors.append(f"{ENV_PREFIX}GLM_MODEL must not be empty")
+        if self.models.qa_timeout is not None and self.models.qa_timeout <= 0:
+            errors.append(f"{ENV_PREFIX}QA_TIMEOUT must be positive or none")
         if validate_model_paths:
             for label, path in (
                 ("embedding model", self.models.embedding_model_path),

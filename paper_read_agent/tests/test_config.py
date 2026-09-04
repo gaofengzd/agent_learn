@@ -23,6 +23,7 @@ def test_loads_valid_configuration_and_defaults(tmp_path: Path) -> None:
     settings = AppSettings.from_env(valid_env(tmp_path))
 
     assert settings.models.glm_model == "glm-4.7"
+    assert settings.models.qa_timeout is None
     assert settings.chunks.child_min_tokens == 300
     assert settings.chunks.parent_max_tokens == 1500
     assert settings.retrieval.candidate_limit == 50
@@ -45,6 +46,7 @@ def test_environment_values_override_defaults(tmp_path: Path) -> None:
     env.update(
         {
             "PAPER_AGENT_GLM_MODEL": "configured-model",
+            "PAPER_AGENT_QA_TIMEOUT": "180",
             "PAPER_AGENT_CHILD_CHUNK_MIN_TOKENS": "320",
             "PAPER_AGENT_RETRIEVAL_CANDIDATE_LIMIT": "40",
             "PAPER_AGENT_RERANK_INPUT_LIMIT": "20",
@@ -57,6 +59,7 @@ def test_environment_values_override_defaults(tmp_path: Path) -> None:
     settings = AppSettings.from_env(env)
 
     assert settings.models.glm_model == "configured-model"
+    assert settings.models.qa_timeout == 180
     assert settings.chunks.child_min_tokens == 320
     assert settings.retrieval.candidate_limit == 40
     assert settings.retrieval.rerank_input_limit == 20
@@ -81,6 +84,7 @@ def test_rejects_missing_model_directory(tmp_path: Path) -> None:
         ("PAPER_AGENT_EVIDENCE_CONTEXT_RATIO", "0.9", "between 0.4 and 0.6"),
         ("PAPER_AGENT_RERANK_INPUT_LIMIT", "60", "must not exceed candidate"),
         ("PAPER_AGENT_RERANK_RESULT_LIMIT", "25", "must not exceed rerank input"),
+        ("PAPER_AGENT_QA_TIMEOUT", "0", "must be positive or none"),
         ("PAPER_AGENT_LOG_LEVEL", "verbose", "Unsupported log level"),
     ],
 )

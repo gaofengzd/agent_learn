@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>论文精读 Agent</title><link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}"></head>
+<title>论文精读 Agent</title>{% if section=='analysis' and analysis and analysis.analysis_active %}<meta http-equiv="refresh" content="3">{% endif %}<link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}"></head>
 <body><a class="skip" href="#content">跳到主要内容</a><header><h1>论文精读 Agent</h1><div class="health" aria-label="系统健康状态">
 {% for item in health %}<span class="status status-{{ item.status }}"><b aria-hidden="true">{% if item.status == 'available' %}✓{% elif item.status == 'warning' %}△{% else %}!{% endif %}</b> {{ item.name }}：{{ item.message }}</span>{% endfor %}</div></header>
 {% if state %}<div role="alert" class="notice {{ state.level }}"><b>{{ state.icon }} {{ state.label }}</b>：{{ state.message }}</div>{% endif %}

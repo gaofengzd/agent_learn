@@ -26,6 +26,7 @@ def test_valid_json_is_parsed_and_prompt_is_versioned():
     result=client.generate(PromptRegistry.messages("answer", "[]"))
     assert result.answer_status is AnswerStatus.ANSWERED and result.claims[0].evidence_ids == ("ev_1",)
     assert PromptRegistry.VERSION and transport.calls[0][0]["model"] == "glm-4.7"
+    assert transport.calls[0][1] is None
     assert transport.calls[0][0]["response_format"] == {"type": "json_object"}
     system_prompt = transport.calls[0][0]["messages"][0]["content"]
     assert all(field in system_prompt for field in valid())

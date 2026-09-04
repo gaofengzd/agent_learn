@@ -1,3 +1,4 @@
+import json
 import time
 from pathlib import Path
 import fitz
@@ -53,3 +54,38 @@ def test_failed_status_is_consistent_and_default_facade_can_delete(tmp_path):
     facade.delete_paper(result["paper_id"])
     assert facade.list_papers()==[]
     facade.runner.shutdown()
+
+
+def test_analysis_result_is_restored_for_the_same_active_paper_version(tmp_path):
+    configured=settings(tmp_path)
+    first=LocalUIFacade(
+        configured,
+        processor=lambda _:ProcessingOutcome(PaperStatus.READY,QualityLevel.READY))
+    first.upload_papers([("paper.pdf","application/pdf",pdf_bytes())])
+    deadline=time.time()+3
+    while time.time()<deadline and first.list_papers()[0]["status_label"]!="可用":
+        time.sleep(.01)
+    paper=first.repository.list_papers()[0]
+    now="2026-01-01T00:00:00+00:00"
+    payload={"analysis":{"summary":{"content":"持久化总结"}},
+             "citations":[{"evidence_id":"ev1","label":"paper, p. 1",
+                           "excerpt":"evidence","source_type":"native_pdf"}]}
+    with first.database.transaction() as connection:
+        connection.execute(
+            "INSERT INTO analysis_tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("analysis-1","summary",json.dumps([paper.paper_id]),
+             json.dumps([paper.active_version_id]),"brief","succeeded","分析已完成",
+             0,json.dumps(payload,ensure_ascii=False),now,now,now,now)
+        )
+    first.runner.shutdown()
+    first._analysis_queue.shutdown()
+
+    restored=LocalUIFacade(
+        configured,
+        processor=lambda _:ProcessingOutcome(PaperStatus.READY,QualityLevel.READY))
+    view=restored.analysis_view()
+    restored.runner.shutdown()
+    restored._analysis_queue.shutdown()
+
+    assert view["summary"]["content"]=="持久化总结"
+    assert view["citations"][0]["evidence_id"]=="ev1"

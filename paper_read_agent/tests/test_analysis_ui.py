@@ -33,3 +33,39 @@ def test_analysis_backend_error_is_not_hidden():
         def summarize(self,papers,level):raise RuntimeError("glm")
     text=TestClient(create_app(Broken())).post("/analysis/summary",data={"paper_ids":["p1"],"level":"standard"}).text
     assert "分析失败" in text and "RuntimeError" in text
+
+def test_background_analysis_submission_returns_without_running_inline():
+    class Background(Facade):
+        def submit_analysis(self,operation,papers,level):
+            self.actions.append((operation,papers,level))
+            return {"task_id":"t1","duplicate":False}
+        def analysis_view(self):
+            value=super().analysis_view()
+            value.update(tasks=[{"task_id":"t1","operation":"summary","status":"running",
+                                 "message":"正在检索、重排并生成"}],
+                         analysis_active=True)
+            return value
+    facade=Background()
+    response=TestClient(create_app(facade)).post(
+        "/analysis/summary",data={"paper_ids":["p1"],"level":"detailed"})
+    assert facade.actions==[("summary",["p1"],"detailed")]
+    assert "阅读分析正在后台执行" in response.text
+    assert "运行中" in response.text
+    assert "取消任务" in response.text
+    assert 'http-equiv="refresh"' in response.text
+
+def test_duplicate_background_analysis_reports_existing_task():
+    class Background(Facade):
+        def submit_analysis(self,operation,papers,level):
+            return {"task_id":"t1","duplicate":True}
+    response=TestClient(create_app(Background())).post(
+        "/analysis/summary",data={"paper_ids":["p1"],"level":"standard"})
+    assert "相同的阅读分析正在执行，无需重复提交" in response.text
+
+def test_cancel_analysis_route_delegates_task_id():
+    class Background(Facade):
+        def cancel_analysis(self,task_id):self.actions.append(("cancel",task_id))
+    facade=Background()
+    response=TestClient(create_app(facade)).post("/analysis/tasks/t1/cancel")
+    assert facade.actions==[("cancel","t1")]
+    assert "任务将在当前计算步骤结束后停止" in response.text

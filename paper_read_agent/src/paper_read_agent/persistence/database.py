@@ -179,6 +179,54 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         );
         CREATE INDEX idx_scope_events_conversation ON conversation_scope_events(conversation_id,created_at);
     """),
+    (4, """
+        CREATE TABLE analysis_tasks (
+            task_id TEXT PRIMARY KEY,
+            operation TEXT NOT NULL CHECK (operation IN ('summary','methods','innovations')),
+            paper_ids_json TEXT NOT NULL,
+            version_ids_json TEXT NOT NULL,
+            level TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('queued','running','succeeded','failed')),
+            message TEXT NOT NULL,
+            result_json TEXT,
+            created_at TEXT NOT NULL,
+            started_at TEXT,
+            finished_at TEXT,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX idx_analysis_tasks_created ON analysis_tasks(created_at);
+        CREATE INDEX idx_analysis_tasks_operation_status
+        ON analysis_tasks(operation,status,created_at);
+    """),
+    (5, """
+        ALTER TABLE analysis_tasks RENAME TO analysis_tasks_v4;
+        CREATE TABLE analysis_tasks (
+            task_id TEXT PRIMARY KEY,
+            operation TEXT NOT NULL CHECK (operation IN ('summary','methods','innovations')),
+            paper_ids_json TEXT NOT NULL,
+            version_ids_json TEXT NOT NULL,
+            level TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('queued','running','succeeded','failed','cancelled')),
+            message TEXT NOT NULL,
+            cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK (cancel_requested IN (0,1)),
+            result_json TEXT,
+            created_at TEXT NOT NULL,
+            started_at TEXT,
+            finished_at TEXT,
+            updated_at TEXT NOT NULL
+        );
+        INSERT INTO analysis_tasks (
+            task_id,operation,paper_ids_json,version_ids_json,level,status,message,
+            cancel_requested,result_json,created_at,started_at,finished_at,updated_at
+        )
+        SELECT task_id,operation,paper_ids_json,version_ids_json,level,status,message,
+               0,result_json,created_at,started_at,finished_at,updated_at
+        FROM analysis_tasks_v4;
+        DROP TABLE analysis_tasks_v4;
+        CREATE INDEX idx_analysis_tasks_created ON analysis_tasks(created_at);
+        CREATE INDEX idx_analysis_tasks_operation_status
+        ON analysis_tasks(operation,status,created_at);
+    """),
 )
 
 

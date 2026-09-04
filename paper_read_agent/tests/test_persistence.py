@@ -70,6 +70,46 @@ def test_initialize_is_idempotent_and_enables_foreign_keys(database: SQLiteDatab
     assert foreign_keys == 1
 
 
+def test_existing_schema_v4_upgrades_analysis_tasks_without_data_loss(tmp_path: Path) -> None:
+    path = tmp_path / "schema-v4.sqlite3"
+    connection = sqlite3.connect(path)
+    connection.execute(
+        "CREATE TABLE schema_migrations ("
+        "version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    )
+    for version, sql in MIGRATIONS[:4]:
+        connection.executescript(sql)
+        connection.execute("INSERT INTO schema_migrations(version) VALUES (?)", (version,))
+    connection.execute(
+        "INSERT INTO analysis_tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("task-1", "summary", '["paper-1"]', '["version-1"]', "standard",
+         "succeeded", "分析已完成", '{"analysis":{}}',
+         "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:01+00:00",
+         "2026-01-01T00:00:02+00:00", "2026-01-01T00:00:02+00:00"),
+    )
+    connection.commit()
+    connection.close()
+
+    database = SQLiteDatabase(path)
+    database.initialize()
+
+    with database.connect() as upgraded:
+        row = upgraded.execute(
+            "SELECT status,cancel_requested,result_json FROM analysis_tasks "
+            "WHERE task_id='task-1'"
+        ).fetchone()
+        version = upgraded.execute(
+            "SELECT MAX(version) FROM schema_migrations"
+        ).fetchone()[0]
+
+    assert version == 5
+    assert dict(row) == {
+        "status": "succeeded",
+        "cancel_requested": 0,
+        "result_json": '{"analysis":{}}',
+    }
+
+
 def test_paper_create_query_and_update(repository: SQLiteDomainRepository) -> None:
     paper, _ = seed_paper(repository)
 
