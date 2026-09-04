@@ -174,6 +174,7 @@ def test_full_document_relationship_round_trip(repository: SQLiteDomainRepositor
     assert repository.get_block(block.block_id) == block
     assert repository.get_chunk(parent.chunk_id) == parent
     assert repository.get_chunk(child.chunk_id) == child
+    assert repository.list_chunks(version.version_id) == (child, parent)
 
     updated_version = repository.update_version(
         replace(version, parser_version="1.0", parse_status=PaperStatus.PARSING)

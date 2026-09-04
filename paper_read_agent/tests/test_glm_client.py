@@ -27,6 +27,17 @@ def test_valid_json_is_parsed_and_prompt_is_versioned():
     assert result.answer_status is AnswerStatus.ANSWERED and result.claims[0].evidence_ids == ("ev_1",)
     assert PromptRegistry.VERSION and transport.calls[0][0]["model"] == "glm-4.7"
     assert transport.calls[0][0]["response_format"] == {"type": "json_object"}
+    system_prompt = transport.calls[0][0]["messages"][0]["content"]
+    assert all(field in system_prompt for field in valid())
+    assert "Do not wrap the object in another field" in system_prompt
+
+
+def test_non_qa_evidence_prompt_does_not_force_qa_schema():
+    messages = PromptRegistry.evidence_messages("extract methods", "[]")
+
+    assert "Use only supplied Evidence" in messages[0]["content"]
+    assert "answer_status" not in messages[0]["content"]
+    assert "extract methods" in messages[1]["content"]
 
 
 @pytest.mark.parametrize("mutate", [
@@ -63,4 +74,18 @@ def test_http_failure_suppresses_credential_bearing_urllib_chain(monkeypatch):
     rendered = "".join(traceback.format_exception(caught.value))
     assert secret not in rendered
     assert "Authorization" not in rendered
+    assert caught.value.__suppress_context__ is True
+
+
+def test_remote_disconnect_is_normalized_for_caller_retry(monkeypatch):
+    from http.client import RemoteDisconnected
+
+    def fail(*args, **kwargs):
+        raise RemoteDisconnected("remote closed the connection")
+
+    monkeypatch.setattr("paper_read_agent.llm.glm_client.request.urlopen", fail)
+
+    with pytest.raises(ModelInvocationError, match="RemoteDisconnected") as caught:
+        GLMHTTPTransport("secret").post({"model": "glm-4.7"}, timeout=1)
+
     assert caught.value.__suppress_context__ is True

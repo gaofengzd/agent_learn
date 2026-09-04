@@ -49,6 +49,7 @@ class DomainRepository(Protocol):
     def update_block(self, block: ContentBlock) -> ContentBlock: ...
     def create_chunk(self, chunk: Chunk) -> Chunk: ...
     def get_chunk(self, chunk_id: str) -> Chunk | None: ...
+    def list_chunks(self, version_id: str) -> tuple[Chunk, ...]: ...
     def update_chunk(self, chunk: Chunk) -> Chunk: ...
     def save_quality_report(self, report: QualityReport) -> QualityReport: ...
     def get_quality_report(self, report_id: str) -> QualityReport | None: ...
@@ -264,6 +265,24 @@ class SQLiteDomainRepository:
                 )
             )
         return self._chunk(row, block_ids)
+
+    def list_chunks(self, version_id: str) -> tuple[Chunk, ...]:
+        with self.database.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM chunks WHERE version_id=? "
+                "ORDER BY page_start,page_end,chunk_id", (version_id,)
+            ).fetchall()
+            values = []
+            for row in rows:
+                block_ids = tuple(
+                    item["block_id"]
+                    for item in connection.execute(
+                        "SELECT block_id FROM chunk_blocks WHERE chunk_id=? ORDER BY position",
+                        (row["chunk_id"],),
+                    )
+                )
+                values.append(self._chunk(row, block_ids))
+        return tuple(values)
 
     def update_chunk(self, chunk: Chunk) -> Chunk:
         value = replace(chunk, updated_at=utc_now())

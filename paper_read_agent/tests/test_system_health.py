@@ -93,6 +93,26 @@ def test_missing_dependency_is_reported_without_installing(tmp_path: Path, monke
     assert "not installed" in docling.message
 
 
+def test_rapidocr_health_check_matches_the_runtime_adapter(tmp_path: Path, monkeypatch) -> None:
+    value = settings(tmp_path)
+    checked_modules = []
+
+    def fake_find_spec(module: str):
+        checked_modules.append(module)
+        return object()
+
+    monkeypatch.setattr(
+        "paper_read_agent.application.system_health.find_spec", fake_find_spec
+    )
+
+    report = SystemHealthService(value).check()
+    rapidocr = next(item for item in report.components if item.name == "rapidocr")
+
+    assert rapidocr.status is HealthStatus.AVAILABLE
+    assert rapidocr.details == {"module": "rapidocr"}
+    assert "rapidocr_onnxruntime" not in checked_modules
+
+
 def test_missing_glm_key_is_unavailable_and_not_exposed(tmp_path: Path, monkeypatch) -> None:
     value = settings(tmp_path, api_key="")
     monkeypatch.setattr(

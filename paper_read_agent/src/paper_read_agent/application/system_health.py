@@ -43,7 +43,7 @@ class SystemHealthReport:
 class SystemHealthService:
     REQUIRED_DEPENDENCIES = {
         "docling": "Docling PDF parser",
-        "rapidocr_onnxruntime": "RapidOCR engine",
+        "rapidocr": "RapidOCR engine",
         "fitz": "PyMuPDF",
         "chromadb": "Chroma",
     }

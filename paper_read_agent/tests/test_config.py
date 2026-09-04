@@ -26,6 +26,8 @@ def test_loads_valid_configuration_and_defaults(tmp_path: Path) -> None:
     assert settings.chunks.child_min_tokens == 300
     assert settings.chunks.parent_max_tokens == 1500
     assert settings.retrieval.candidate_limit == 50
+    assert settings.retrieval.rerank_input_limit == 24
+    assert settings.retrieval.rerank_result_limit == 12
     assert settings.retrieval.evidence_context_ratio == 0.5
     assert settings.storage.pdf_dir == tmp_path / "runtime" / "pdfs"
 
@@ -45,6 +47,7 @@ def test_environment_values_override_defaults(tmp_path: Path) -> None:
             "PAPER_AGENT_GLM_MODEL": "configured-model",
             "PAPER_AGENT_CHILD_CHUNK_MIN_TOKENS": "320",
             "PAPER_AGENT_RETRIEVAL_CANDIDATE_LIMIT": "40",
+            "PAPER_AGENT_RERANK_INPUT_LIMIT": "20",
             "PAPER_AGENT_RERANK_RESULT_LIMIT": "10",
             "PAPER_AGENT_EVIDENCE_CONTEXT_RATIO": "0.6",
             "PAPER_AGENT_LOG_LEVEL": "warning",
@@ -56,6 +59,7 @@ def test_environment_values_override_defaults(tmp_path: Path) -> None:
     assert settings.models.glm_model == "configured-model"
     assert settings.chunks.child_min_tokens == 320
     assert settings.retrieval.candidate_limit == 40
+    assert settings.retrieval.rerank_input_limit == 20
     assert settings.retrieval.rerank_result_limit == 10
     assert settings.retrieval.evidence_context_ratio == 0.6
     assert settings.runtime.log_level == "WARNING"
@@ -75,7 +79,8 @@ def test_rejects_missing_model_directory(tmp_path: Path) -> None:
         ("PAPER_AGENT_CHILD_CHUNK_MIN_TOKENS", "invalid", "must be an integer"),
         ("PAPER_AGENT_FORCED_SPLIT_OVERLAP_RATIO", "1.0", "must be in"),
         ("PAPER_AGENT_EVIDENCE_CONTEXT_RATIO", "0.9", "between 0.4 and 0.6"),
-        ("PAPER_AGENT_RERANK_RESULT_LIMIT", "60", "must not exceed candidate"),
+        ("PAPER_AGENT_RERANK_INPUT_LIMIT", "60", "must not exceed candidate"),
+        ("PAPER_AGENT_RERANK_RESULT_LIMIT", "25", "must not exceed rerank input"),
         ("PAPER_AGENT_LOG_LEVEL", "verbose", "Unsupported log level"),
     ],
 )

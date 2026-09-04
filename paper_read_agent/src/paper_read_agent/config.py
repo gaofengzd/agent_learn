@@ -78,6 +78,7 @@ class ChunkSettings:
 @dataclass(frozen=True, slots=True)
 class RetrievalSettings:
     candidate_limit: int
+    rerank_input_limit: int
     rerank_result_limit: int
     evidence_context_ratio: float
 
@@ -157,6 +158,9 @@ class AppSettings:
                 candidate_limit=_read_int(
                     values, f"{ENV_PREFIX}RETRIEVAL_CANDIDATE_LIMIT", 50
                 ),
+                rerank_input_limit=_read_int(
+                    values, f"{ENV_PREFIX}RERANK_INPUT_LIMIT", 24
+                ),
                 rerank_result_limit=_read_int(
                     values, f"{ENV_PREFIX}RERANK_RESULT_LIMIT", 12
                 ),
@@ -211,10 +215,16 @@ class AppSettings:
             errors.append("Forced-split overlap ratio must be in [0, 1)")
 
         retrieval = self.retrieval
-        if retrieval.candidate_limit <= 0 or retrieval.rerank_result_limit <= 0:
+        if min(
+            retrieval.candidate_limit,
+            retrieval.rerank_input_limit,
+            retrieval.rerank_result_limit,
+        ) <= 0:
             errors.append("Retrieval limits must be positive")
-        if retrieval.rerank_result_limit > retrieval.candidate_limit:
-            errors.append("Rerank result limit must not exceed candidate limit")
+        if retrieval.rerank_input_limit > retrieval.candidate_limit:
+            errors.append("Rerank input limit must not exceed candidate limit")
+        if retrieval.rerank_result_limit > retrieval.rerank_input_limit:
+            errors.append("Rerank result limit must not exceed rerank input limit")
         if not 0.4 <= retrieval.evidence_context_ratio <= 0.6:
             errors.append("Evidence context ratio must be between 0.4 and 0.6")
         if self.runtime.log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:

@@ -33,10 +33,22 @@ class StructuredAnswer:
 
 class PromptRegistry:
     VERSION = "grounded-answer-v1"
-    TRUSTED_SYSTEM = (
+    EVIDENCE_SYSTEM = (
         "You are an academic paper reader. Use only supplied Evidence. "
         "Cite only provided evidence_id values. Never invent facts, pages, or citations. "
         "If evidence is insufficient, say so explicitly and leave the item unanswered."
+    )
+    TRUSTED_SYSTEM = (
+        EVIDENCE_SYSTEM + " "
+        "Return exactly one JSON object with all of these top-level fields: "
+        "answer_status, concise_answer, claims, uncertainty, conflicts, "
+        "unanswered_items, refusal_reason. "
+        "answer_status must be answered, partially_answered, conflicted, "
+        "insufficient_evidence, document_quality_failure, or out_of_scope. "
+        "claims must be an array of objects with text, evidence_ids, and support; "
+        "support must be direct, inference, conflict, or unsupported. "
+        "uncertainty, conflicts, and unanswered_items must be arrays of strings. "
+        "refusal_reason must be a string or null. Do not wrap the object in another field."
     )
 
     @classmethod
@@ -44,9 +56,15 @@ class PromptRegistry:
         return [{"role": "system", "content": cls.TRUSTED_SYSTEM},
                 {"role": "user", "content": f"{task_prompt}\nEvidence:\n{evidence_json}"}]
 
+    @classmethod
+    def evidence_messages(cls, task_prompt: str, evidence_json: str) -> list[dict[str, str]]:
+        """Evidence-only guardrails for non-QA structured schemas."""
+        return [{"role": "system", "content": cls.EVIDENCE_SYSTEM},
+                {"role": "user", "content": f"{task_prompt}\nEvidence:\n{evidence_json}"}]
+
 
 class Transport(Protocol):
-    def post(self, payload: dict[str, Any], *, timeout: float) -> dict[str, Any]: ...
+    def post(self, payload: dict[str, Any], *, timeout: float | None) -> dict[str, Any]: ...
 
 
 class GLMHTTPTransport:
@@ -55,7 +73,7 @@ class GLMHTTPTransport:
     def __init__(self, api_key: str, endpoint: str | None = None) -> None:
         self.api_key, self.endpoint = api_key, endpoint or self.ENDPOINT
 
-    def post(self, payload: dict[str, Any], *, timeout: float) -> dict[str, Any]:
+    def post(self, payload: dict[str, Any], *, timeout: float | None) -> dict[str, Any]:
         req = request.Request(self.endpoint, data=json.dumps(payload).encode(), method="POST",
                               headers={"Authorization": f"Bearer {self.api_key}",
                                        "Content-Type": "application/json"})
@@ -66,7 +84,7 @@ class GLMHTTPTransport:
             # urllib exceptions retain their Request, including Authorization.
             # Do not attach that credential-bearing object to the public chain.
             raise ModelInvocationError(f"GLM HTTP {exc.code}") from None
-        except (error.URLError, socket.timeout, TimeoutError) as exc:
+        except (error.URLError, socket.timeout, TimeoutError, ConnectionError) as exc:
             raise ModelInvocationError(f"GLM transport failure: {type(exc).__name__}") from None
 
 
